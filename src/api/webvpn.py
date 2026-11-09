@@ -303,7 +303,7 @@ class WebVPNSession:
                 f"iCourse CAS auth failed (code={data.get('code')})"
             )
 
-        login_token = data.get("loginToken", "")
+        login_token = self._extract_login_token(data)
         if not login_token:
             raise RuntimeError("No loginToken in iCourse CAS response")
         print("    loginToken: OK")
@@ -390,6 +390,17 @@ class WebVPNSession:
         return self.session.post(url, **kwargs)
 
     # --- Private authentication steps ---
+
+    @staticmethod
+    def _extract_login_token(data: dict) -> str:
+        """Extract loginToken from common IDP response shapes."""
+        login_token = data.get("loginToken", "")
+        if login_token:
+            return login_token
+        nested = data.get("data")
+        if isinstance(nested, dict):
+            return nested.get("loginToken", "") or ""
+        return ""
 
     def _get_auth_context(self) -> tuple[str, str]:
         """Step 1: GET authenticate endpoint, extract lck from redirect."""
@@ -527,8 +538,7 @@ class WebVPNSession:
                 f"Authentication failed (code={data.get('code')})"
             )
 
-        # loginToken is at top level, not nested under "data"
-        login_token = data.get("loginToken", "")
+        login_token = self._extract_login_token(data)
         if not login_token:
             raise RuntimeError("No loginToken in response")
 
